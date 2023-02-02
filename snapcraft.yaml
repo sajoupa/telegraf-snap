@@ -1,5 +1,5 @@
 name: telegraf
-base: core18
+base: core20
 adopt-info: telegraf
 summary: Telegraf agent
 description: |
@@ -31,7 +31,7 @@ parts:
     plugin: nil
     build-snaps: [go]
     build-packages: [make, gcc, git]
-    stage-packages: [setpriv]
+    stage-packages: [util-linux]
     override-build: |
       git clone https://github.com/influxdata/telegraf.git
       cd telegraf
@@ -39,7 +39,7 @@ parts:
       version="$(echo $tag | cut -d 'v' -f 2)"
       snapcraftctl set-version "$version"
       git checkout tags/$tag
-      LDFLAGS='' make
+      LDFLAGS='' make build
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
       cp -p telegraf $SNAPCRAFT_PART_INSTALL/bin/
       cp -p -r etc $SNAPCRAFT_PART_INSTALL/
