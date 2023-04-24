@@ -41,5 +41,7 @@ parts:
       git checkout tags/$tag
       LDFLAGS='' make build
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
+      mkdir -p $SNAPCRAFT_PART_INSTALL/etc
+      ./telegraf config > $SNAPCRAFT_PART_INSTALL/etc/telegraf.conf
       cp -p telegraf $SNAPCRAFT_PART_INSTALL/bin/
       cp -p -r etc $SNAPCRAFT_PART_INSTALL/
