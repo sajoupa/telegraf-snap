@@ -29,7 +29,7 @@ parts:
   telegraf:
     build-attributes: [no-patchelf]
     plugin: nil
-    build-snaps: [go]
+    build-snaps: [go/1.22/candidate]
     build-packages: [make, gcc, git]
     stage-packages: [util-linux]
     override-build: |
