@@ -1,5 +1,5 @@
 name: telegraf
-base: core20
+base: core22
 adopt-info: telegraf
 summary: Telegraf agent
 description: |
@@ -29,7 +29,7 @@ parts:
   telegraf:
     build-attributes: [no-patchelf]
     plugin: nil
-    build-snaps: [go/1.22/stable]
+    build-snaps: [go/latest/stable]
     build-packages: [make, gcc, git]
     stage-packages: [util-linux]
     override-build: |
