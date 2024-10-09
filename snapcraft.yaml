@@ -27,7 +27,8 @@ parts:
       - bin
 
   telegraf:
-    build-attributes: [no-patchelf]
+    build-attributes:
+      - enable-patchelf
     plugin: nil
     build-snaps: [go/latest/stable]
     build-packages: [make, gcc, git]
