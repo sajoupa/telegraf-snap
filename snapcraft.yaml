@@ -30,7 +30,7 @@ parts:
     build-attributes:
       - enable-patchelf
     plugin: nil
-    build-snaps: [go/latest/stable]
+    build-snaps: [go/latest/edge] # https://bugs.launchpad.net/go-snap/+bug/2120749
     build-packages: [make, gcc, git]
     stage-packages: [util-linux]
     override-build: |
