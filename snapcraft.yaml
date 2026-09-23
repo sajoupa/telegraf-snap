@@ -40,12 +40,15 @@ parts:
       version="$(echo $tag | cut -d 'v' -f 2)"
       snapcraftctl set-version "$version"
       git checkout tags/$tag
-      # armhf's 32-bit builders have limited RAM/address space; a full,
-      # unstripped telegraf binary (all plugins) can crash the Go linker
-      # there, causing empty-log "failed to build" errors. Strip symbols
-      # and cap build parallelism for that architecture only.
+      # armhf is a 32-bit target: the Go compiler has a ~3-4GB virtual
+      # address space ceiling there, and compiling telegraf's huge
+      # cmd/telegraf package (all plugins, inlined) blows past it with
+      # "fatal error: runtime: cannot allocate memory" (a hard crash, hence
+      # the empty build log). Disabling inlining and compiling one package
+      # at a time drastically cuts compiler memory use on that arch only.
       if [ "$CRAFT_ARCH_BUILD_FOR" = "armhf" ]; then
-        export GOFLAGS='-p=2'
+        export GOFLAGS='-p=1 -gcflags=all=-l'
+        export GOMAXPROCS=1
         LDFLAGS='-s -w' make build
       else
         LDFLAGS='' make build
