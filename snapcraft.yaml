@@ -10,6 +10,29 @@ passthrough:
   system-usernames:
     snap_daemon: shared
 
+# armhf and i386 are 32-bit targets. Building natively on those
+# Launchpad builders means the Go compiler/linker themselves run as
+# 32-bit processes with a small (~3GB) virtual address space; telegraf's
+# huge cmd/telegraf binary (all plugins) exceeds that, crashing with
+# "fatal error: runtime: cannot allocate memory" or "mapping output file
+# failed: cannot allocate memory". Cross-compiling them from the amd64
+# builder runs the toolchain as a 64-bit process instead, sidestepping
+# the limit entirely. The other, 64-bit architectures keep building
+# natively.
+architectures:
+  - build-on: [amd64]
+    build-for: [amd64]
+  - build-on: [arm64]
+    build-for: [arm64]
+  - build-on: [ppc64el]
+    build-for: [ppc64el]
+  - build-on: [s390x]
+    build-for: [s390x]
+  - build-on: [amd64]
+    build-for: [armhf]
+  - build-on: [amd64]
+    build-for: [i386]
+
 apps:
   telegraf:
     command: 'bin/telegraf.wrapper'
@@ -31,7 +54,7 @@ parts:
       - enable-patchelf
     plugin: nil
     build-snaps: [go/latest/stable]
-    build-packages: [make, gcc, git, libc6-dev]
+    build-packages: [make, gcc, git]
     stage-packages: [util-linux]
     override-build: |
       git clone https://github.com/influxdata/telegraf.git
@@ -40,28 +63,13 @@ parts:
       version="$(echo $tag | cut -d 'v' -f 2)"
       snapcraftctl set-version "$version"
       git checkout tags/$tag
-      # armhf is a 32-bit target with a small process address space.
-      # Compiling telegraf's huge cmd/telegraf package (all plugins,
-      # inlined) can exhaust it during compilation ("fatal error: runtime:
-      # cannot allocate memory"); disabling inlining and compiling one
-      # package at a time keeps the compiler's memory use down. The Go
-      # internal linker also mmaps the entire output binary in one go,
-      # which fails the same way once the binary is too large for a
-      # 32-bit address space ("mapping output file failed"), so switch to
-      # the external (system) linker there instead, which streams the
-      # output rather than mapping it all at once. Statically link it
-      # (-extldflags=-static) and force the pure-Go DNS resolver
-      # (netgo build tag) so the resulting binary stays glibc/kernel
-      # version independent, same as the other, purely statically
-      # Go-linked architectures.
-      if [ "$CRAFT_ARCH_BUILD_FOR" = "armhf" ]; then
-        sed -i 's|^\tCGO_ENABLED=0 go build -tags "\$(BUILDTAGS)" -ldflags "\$(LDFLAGS)" ./cmd/telegraf$|\tCGO_ENABLED=1 go build -tags "$(BUILDTAGS)" -ldflags "$(LDFLAGS)" ./cmd/telegraf|' Makefile
-        export GOFLAGS='-p=1 -gcflags=all=-l'
-        export BUILDTAGS='netgo'
-        LDFLAGS='-s -w -linkmode=external -extld=gcc -extldflags=-static' make build
-      else
-        LDFLAGS='' make build
-      fi
+      # Cross-compile for the 32-bit targets (see the top-level
+      # `architectures` key); this build always runs on an amd64 host.
+      case "$CRAFT_ARCH_BUILD_FOR" in
+        armhf) export GOOS=linux GOARCH=arm GOARM=7 ;;
+        i386)  export GOOS=linux GOARCH=386 ;;
+      esac
+      LDFLAGS='' make build
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
       mkdir -p $SNAPCRAFT_PART_INSTALL/etc
       ./telegraf config > $SNAPCRAFT_PART_INSTALL/etc/telegraf.conf
