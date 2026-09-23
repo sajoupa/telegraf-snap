@@ -40,16 +40,20 @@ parts:
       version="$(echo $tag | cut -d 'v' -f 2)"
       snapcraftctl set-version "$version"
       git checkout tags/$tag
-      # armhf is a 32-bit target: the Go compiler has a ~3-4GB virtual
-      # address space ceiling there, and compiling telegraf's huge
-      # cmd/telegraf package (all plugins, inlined) blows past it with
-      # "fatal error: runtime: cannot allocate memory" (a hard crash, hence
-      # the empty build log). Disabling inlining and compiling one package
-      # at a time drastically cuts compiler memory use on that arch only.
+      # armhf is a 32-bit target with a small process address space.
+      # Compiling telegraf's huge cmd/telegraf package (all plugins,
+      # inlined) can exhaust it during compilation ("fatal error: runtime:
+      # cannot allocate memory"); disabling inlining and compiling one
+      # package at a time keeps the compiler's memory use down. The Go
+      # internal linker also mmaps the entire output binary in one go,
+      # which fails the same way once the binary is too large for a
+      # 32-bit address space ("mapping output file failed"), so switch to
+      # the external (system) linker there instead, which streams the
+      # output rather than mapping it all at once.
       if [ "$CRAFT_ARCH_BUILD_FOR" = "armhf" ]; then
+        sed -i 's|^\tCGO_ENABLED=0 go build -tags "\$(BUILDTAGS)" -ldflags "\$(LDFLAGS)" ./cmd/telegraf$|\tCGO_ENABLED=1 go build -tags "$(BUILDTAGS)" -ldflags "$(LDFLAGS)" ./cmd/telegraf|' Makefile
         export GOFLAGS='-p=1 -gcflags=all=-l'
-        export GOMAXPROCS=1
-        LDFLAGS='-s -w' make build
+        LDFLAGS='-s -w -linkmode=external -extld=gcc' make build
       else
         LDFLAGS='' make build
       fi
