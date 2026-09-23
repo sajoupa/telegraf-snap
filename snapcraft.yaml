@@ -72,6 +72,16 @@ parts:
       LDFLAGS='' make build
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
       mkdir -p $SNAPCRAFT_PART_INSTALL/etc
-      ./telegraf config > $SNAPCRAFT_PART_INSTALL/etc/telegraf.conf
+      if [ "$CRAFT_ARCH_BUILD_FOR" != "$CRAFT_ARCH_BUILD_ON" ]; then
+        # The binary just built targets a different architecture than
+        # this (amd64) build host, so it can't be executed here ("Exec
+        # format error"). Build a throwaway native copy just to run
+        # `telegraf config` and generate the default config file.
+        CGO_ENABLED=0 GOOS=linux GOARCH=$CRAFT_ARCH_BUILD_ON go build -o telegraf-host ./cmd/telegraf
+        ./telegraf-host config > $SNAPCRAFT_PART_INSTALL/etc/telegraf.conf
+        rm -f telegraf-host
+      else
+        ./telegraf config > $SNAPCRAFT_PART_INSTALL/etc/telegraf.conf
+      fi
       cp -p telegraf $SNAPCRAFT_PART_INSTALL/bin/
       cp -p -r etc $SNAPCRAFT_PART_INSTALL/
