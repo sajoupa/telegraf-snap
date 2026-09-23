@@ -31,7 +31,7 @@ parts:
       - enable-patchelf
     plugin: nil
     build-snaps: [go/latest/stable]
-    build-packages: [make, gcc, git]
+    build-packages: [make, gcc, git, libc6-dev]
     stage-packages: [util-linux]
     override-build: |
       git clone https://github.com/influxdata/telegraf.git
@@ -49,11 +49,16 @@ parts:
       # which fails the same way once the binary is too large for a
       # 32-bit address space ("mapping output file failed"), so switch to
       # the external (system) linker there instead, which streams the
-      # output rather than mapping it all at once.
+      # output rather than mapping it all at once. Statically link it
+      # (-extldflags=-static) and force the pure-Go DNS resolver
+      # (netgo build tag) so the resulting binary stays glibc/kernel
+      # version independent, same as the other, purely statically
+      # Go-linked architectures.
       if [ "$CRAFT_ARCH_BUILD_FOR" = "armhf" ]; then
         sed -i 's|^\tCGO_ENABLED=0 go build -tags "\$(BUILDTAGS)" -ldflags "\$(LDFLAGS)" ./cmd/telegraf$|\tCGO_ENABLED=1 go build -tags "$(BUILDTAGS)" -ldflags "$(LDFLAGS)" ./cmd/telegraf|' Makefile
         export GOFLAGS='-p=1 -gcflags=all=-l'
-        LDFLAGS='-s -w -linkmode=external -extld=gcc' make build
+        export BUILDTAGS='netgo'
+        LDFLAGS='-s -w -linkmode=external -extld=gcc -extldflags=-static' make build
       else
         LDFLAGS='' make build
       fi
