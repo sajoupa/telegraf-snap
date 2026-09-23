@@ -40,7 +40,16 @@ parts:
       version="$(echo $tag | cut -d 'v' -f 2)"
       snapcraftctl set-version "$version"
       git checkout tags/$tag
-      LDFLAGS='' make build
+      # armhf's 32-bit builders have limited RAM/address space; a full,
+      # unstripped telegraf binary (all plugins) can crash the Go linker
+      # there, causing empty-log "failed to build" errors. Strip symbols
+      # and cap build parallelism for that architecture only.
+      if [ "$CRAFT_ARCH_BUILD_FOR" = "armhf" ]; then
+        export GOFLAGS='-p=2'
+        LDFLAGS='-s -w' make build
+      else
+        LDFLAGS='' make build
+      fi
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
       mkdir -p $SNAPCRAFT_PART_INSTALL/etc
       ./telegraf config > $SNAPCRAFT_PART_INSTALL/etc/telegraf.conf
