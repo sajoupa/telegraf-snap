@@ -5,4 +5,6 @@
 
 # Drop privileges with setpriv and run as snap_daemon
 # https://snapcraft.io/docs/system-usernames
-$SNAP/usr/bin/setpriv --reset-env --clear-groups --reuid snap_daemon --regid snap_daemon -- $SNAP/bin/telegraf --config $SNAP_DATA/telegraf.conf --config-directory $SNAP_DATA/telegraf.d
+# --init-groups loads snap_daemon's supplementary groups from the host
+# (e.g. adm, proxy to read logs); it needs --reuid given as a user name.
+$SNAP/usr/bin/setpriv --reset-env --init-groups --reuid snap_daemon --regid snap_daemon -- $SNAP/bin/telegraf --config $SNAP_DATA/telegraf.conf --config-directory $SNAP_DATA/telegraf.d
